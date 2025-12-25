@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PandaBanque - Investissements VIP</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #2d3436;
+            --accent: #00b894;
+            --danger: #ff7675;
+            --light: #f5f6fa;
+            --white: #ffffff;
+            --grey: #b2bec3;
+            --gold: #f1c40f;
+            --dark-card: #1e272e;
+            --blue-light: #00d2d3;
+            --whatsapp: #25D366;
+            --purple: #6c5ce7;
+            --dark-red: #c0392b;
+            --black: #000000;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            background-color: var(--light);
+            color: var(--primary);
+            padding-bottom: 90px;
+        }
+
+        header {
+            background: var(--white);
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+        header h1 { margin: 0; font-size: 1.3rem; }
+        header h1 span { color: var(--accent); }
+
+        .app-container { padding: 15px; max-width: 500px; margin: 0 auto; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* AUTHENTIFICATION */
+        .auth-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--light); z-index: 5000; display: none; flex-direction: column;
+            padding: 30px; box-sizing: border-box; justify-content: center;
+        }
+        .auth-card {
+            background: white; padding: 25px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center;
+        }
+        .auth-input {
+            width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd;
+            border-radius: 12px; box-sizing: border-box; font-size: 1rem;
+        }
+        .auth-btn {
+            width: 100%; padding: 15px; background: var(--accent); color: white;
+            border: none; border-radius: 12px; font-weight: bold; margin-top: 15px; cursor: pointer;
+        }
+        .auth-link { margin-top: 20px; font-size: 0.9rem; color: var(--grey); }
+        .auth-link span { color: var(--accent); font-weight: bold; cursor: pointer; }
+
+        /* Grid Accueil */
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--white); padding: 15px;
+            border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+        .stat-label { font-size: 0.7rem; color: var(--grey); font-weight: bold; margin-bottom: 5px; }
+        .stat-value { font-size: 1rem; font-weight: bold; margin: 0; }
+        .plus { color: var(--accent); }
+        .minus { color: var(--danger); }
+
+        /* Ligne d'actions Accueil */
+        .home-actions {
+            display: flex; justify-content: space-around; align-items: center;
+            margin: 20px 0; gap: 5px;
+        }
+        .action-item {
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            cursor: pointer; flex: 1;
+        }
+        .btn-circle {
+            width: 55px; height: 55px; border-radius: 50%;
+            background: var(--white); border: 2px solid var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: 0.3s;
+        }
+        .btn-circle.wa { border-color: var(--whatsapp); color: var(--whatsapp); }
+        .btn-circle:active { transform: scale(0.9); }
+        .action-label { font-size: 0.7rem; font-weight: bold; color: var(--primary); }
+
+        /* VIP Cards */
+        .vip-card {
+            color: white; border-radius: 20px; padding: 20px;
+            position: relative; margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .vip1 { background: linear-gradient(135deg, #2d3436 0%, var(--accent) 100%); }
+        .vip2 { background: linear-gradient(165deg, #2d3436 0%, #0984e3 100%); }
+        .vip3 { background: linear-gradient(135deg, #2d3436 0%, var(--gold) 100%); }
+        .vip4 { background: linear-gradient(135deg, #2d3436 0%, var(--purple) 100%); }
+        .vip5 { background: linear-gradient(135deg, #2d3436 0%, var(--dark-red) 100%); }
+        .vip6 { background: linear-gradient(135deg, #2d3436 0%, #d63031 100%); }
+        .vip7 { background: linear-gradient(135deg, #000000 0%, #2d3436 100%); border: 1px solid var(--gold); }
+        
+        .vip-badge {
+            background: var(--gold); color: var(--primary);
+            padding: 5px 15px; border-radius: 50px;
+            font-weight: bold; font-size: 0.8rem; display: inline-block;
+        }
+        .vip-price { font-size: 1.8rem; font-weight: bold; margin: 15px 0 5px 0; }
+        .vip-info { font-size: 0.9rem; opacity: 0.9; margin: 5px 0; display: flex; justify-content: space-between; }
+        .buy-btn {
+            background: var(--white); color: var(--primary);
+            border: none; padding: 12px; width: 100%;
+            border-radius: 12px; font-weight: bold; margin-top: 15px; cursor: pointer;
+        }
+
+        /* ALERTE PERSONNALISÉE */
+        #custom-alert-box {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+        }
+        .alert-content {
+            background: white; width: 100%; max-width: 320px; border-radius: 20px; padding: 25px; text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); animation: pop 0.3s ease;
+        }
+        @keyframes pop { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+        .alert-text { font-size: 1rem; color: var(--primary); margin-bottom: 20px; line-height: 1.5; }
+        .alert-btns { display: flex; gap: 10px; }
+        .alert-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-confirm { background: var(--accent); color: white; }
+        .btn-cancel { background: #eee; color: var(--primary); }
+
+        /* PORTFEUILLE & DÉPÔT */
+        .main-balance-card { background: var(--dark-card); color: white; padding: 25px 20px; border-radius: 25px; margin-bottom: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); position: relative; overflow: hidden; }
+        .label-text { font-size: 0.75rem; color: var(--grey); text-transform: uppercase; letter-spacing: 1px; }
+        .val-text { font-size: 1.8rem; font-weight: bold; margin: 5px 0; display: block; }
+        .val-recharge { color: var(--blue-light); }
+        .val-revenu { color: var(--accent); }
+        .action-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .action-btn { padding: 18px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; color: white; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .btn-in { background: var(--accent); }
+        .btn-out { background: var(--danger); }
+        .history-list { margin-top: 10px; }
+        .history-item { background: white; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+        .info-card { background: white; padding: 20px; border-radius: 20px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f2f6; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: var(--grey); font-size: 0.85rem; }
+        .info-value { font-weight: bold; font-size: 0.9rem; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #131722; z-index: 2000; padding: 20px; box-sizing: border-box; color: white; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .close-modal { font-size: 1.5rem; cursor: pointer; background: none; border: none; color: white; }
+        .modal-depot { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .depot-content { background: white; width: 100%; max-width: 400px; border-radius: 25px; padding: 25px; color: var(--primary); }
+        .input-depot { width: 100%; padding: 15px; border-radius: 15px; border: 1px solid #ddd; font-size: 1.2rem; margin: 15px 0; box-sizing: border-box; outline: none; }
+        .quick-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+        .q-btn { background: #f1f2f6; border: none; padding: 10px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; color: var(--primary); }
+        .op-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .op-btn { padding: 12px; border-radius: 12px; border: 2px solid #f1f2f6; cursor: pointer; text-align: center; font-weight: bold; }
+        .op-btn.active { border-color: var(--accent); background: #e6f7f4; color: var(--accent); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 75px; background: var(--white); display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,0.08); border-top-left-radius: 25px; border-top-right-radius: 25px; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--grey); font-size: 0.75rem; cursor: pointer; flex: 1; transition: 0.3s; }
+        .nav-item.active { color: var(--accent); }
+        .nav-icon { width: 22px; height: 22px; margin-bottom: 4px; fill: currentColor; }
+        .referral-box { background: #1e232f; padding: 20px; border-radius: 15px; margin-top: 15px; text-align: center; border: 1px dashed var(--accent); }
+        .copy-btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 10px; margin-top: 10px; cursor: pointer; font-weight: bold; }
+        #btn-admin-floating { display: none; width: 100%; padding: 15px; border-radius: 12px; background: var(--gold); border: none; color: var(--primary); font-size: 1rem; font-weight: bold; cursor: pointer; margin: 20px 0; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: white; }
+        .admin-table th, .admin-table td { border: 1px solid rgba(255,255,255,0.1); padding: 8px 5px; text-align: left; }
+        .admin-table th { background: rgba(255,255,255,0.05); }
+        .btn-manage { padding: 5px; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.55rem; font-weight: bold; margin-bottom: 2px; width: 100%;}
+        .bg-success { background: var(--accent); }
+        .bg-danger { background: var(--danger); }
+        .bg-info { background: #0984e3; }
+        .bg-pass { background: #6c5ce7; }
+        .admin-tabs, .invest-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-link { color: var(--grey); cursor: pointer; font-size: 0.8rem; font-weight: bold; padding: 10px; flex: 1; text-align: center; }
+        .tab-link.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+        
+        /* MACHINE CARD ENHANCED */
+        .machine-item { background: #fff; padding: 15px; border-radius: 15px; margin-bottom: 12px; border-left: 5px solid var(--accent); box-shadow: 0 4px 10px rgba(0,0,0,0.05); color: var(--primary); }
+        .machine-item.expired { border-left-color: var(--danger); opacity: 0.8; }
+        .m-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 10px;}
+        .m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .m-data { font-size: 0.75rem; color: var(--grey); }
+        .m-val { font-size: 0.9rem; font-weight: bold; color: var(--primary); display: block;}
+
+        .retrait-card-history {
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 15px;
+            border-left: 4px solid var(--danger);
+        }
+        .rh-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem; }
+        .rh-label { color: var(--grey); }
+        .rh-val { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="custom-alert-box">
+        <div class="alert-content">
+            <p id="alert-msg" class="alert-text">Message ici</p>
+            <div class="alert-btns">
+                <button id="alert-cancel-btn" class="alert-btn btn-cancel">Annuler</button>
+                <button id="alert-ok-btn" class="alert-btn btn-confirm">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="auth-login" class="auth-screen">
+        <div class="auth-card">
+            <h2 style="color:var(--primary)">Panda<span>Banque</span> 🐼</h2>
+            <p style="color:var(--grey); margin-bottom:20px;">Connexion à votre espace</p>
+            <input type="number" id="login-phone" class="auth-input" placeholder="Numéro de téléphone">
+            <input type="password" id="login-pass" class="auth-input" placeholder="Mot de passe">
+            <button class="auth-btn" onclick="handleLogin()">Se connecter</button>
+            <p class="auth-link">Pas de compte ? <span onclick="switchAuth('register')">S'inscrire</span></p>
+        </div>
+    </div>
+
+    <div id="auth-register" class="auth-screen">
+        <div class="auth-card">
+            <h2 style="color:var(--primary)">Panda<span>Banque</span> 🐼</h2>
+            <p style="color:var(--grey); margin-bottom:20px;">Créer un compte VIP</p>
+            <input type="text" id="reg-nom" class="auth-input" placeholder="Nom">
+            <input type="text" id="reg-prenom" class="auth-input" placeholder="Prénom">
+            <input type="number" id="reg-phone" class="auth-input" placeholder="Numéro de téléphone">
+            <input type="password" id="reg-pass" class="auth-input" placeholder="Mot de passe">
+            <input type="text" id="reg-code" class="auth-input" placeholder="Code de parrainage (Optionnel)">
+            <button class="auth-btn" onclick="handleRegister()">Créer mon compte</button>
+            <p class="auth-link">Déjà inscrit ? <span onclick="switchAuth('login')">Se connecter</span></p>
+        </div>
+    </div>
+
+    <header><h1>Panda<span>Banque</span> 🐼</h1></header>
+
+    <div class="app-container">
+        
+        <div id="page-accueil" class="page active">
+            <div class="stats-grid">
+                <div class="stat-card"><p class="stat-label">REVENU TOTAL</p><p id="ui-rev-total" class="stat-value plus">0 F</p></div>
+                <div class="stat-card"><p class="stat-label">REVENU JOUR</p><p id="ui-rev-jour" class="stat-value plus">0 F</p></div>
+                <div class="stat-card"><p class="stat-label">TOTAL RETRAIT</p><p id="ui-ret-total" class="stat-value minus">0 F</p></div>
+                <div class="stat-card"><p class="stat-label">SOLDE PARRAINAGE</p><p id="ui-solde-parrainage" class="stat-value" style="color:var(--gold)">0 F</p></div>
+            </div>
+
+            <div style="background:white; padding:15px; border-radius:20px; text-align:center; margin-bottom: 20px;">
+                <p>Bienvenue sur PandaBanque pour être riche , <strong id="ui-username">...</strong>.</p>
+            </div>
+
+            <div class="home-actions">
+                <div class="action-item" onclick="openInvestModal()">
+                    <div class="btn-circle">📊</div>
+                    <span class="action-label">Investis</span>
+                </div>
+                <div class="action-item" onclick="openReferralModal()">
+                    <div class="btn-circle">🎁</div>
+                    <span class="action-label">Parrainage</span>
+                </div>
+                <div class="action-item" onclick="window.location.href='https://wa.me/22666867654'">
+                    <div class="btn-circle wa">💬</div>
+                    <span class="action-label">Service</span>
+                </div>
+            </div>
+            
+            <h4 style="margin: 25px 0 10px 0;">Activités récentes</h4>
+            <div id="ui-history-list" class="history-list">
+                <p style="text-align:center; color:var(--grey); font-size:0.8rem;">Aucune activité</p>
+            </div>
+        </div>
+
+        <div id="page-produits" class="page">
+            <h3 style="margin-bottom:20px">Plans d'Investissement (Limite: 3/produit)</h3>
+            <div class="vip-card vip1">
+                <div class="vip-badge">VIP 1</div>
+                <div class="vip-price">5 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>250 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>12 000 F</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 1', 5000, 250, 48)">acheter chez machine</button>
+            </div>
+            <div class="vip-card vip2">
+                <div class="vip-badge">VIP 2</div>
+                <div class="vip-price">20 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>1 100 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>52 800 F</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 2', 20000, 1100, 48)">acheter chez machine</button>
+            </div>
+            <div class="vip-card vip3">
+                <div class="vip-badge">VIP 3</div>
+                <div class="vip-price">50 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>3 000 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>123 000 F</strong></div>
+                <div class="vip-info"><span>Durée:</span> <strong>41 Jours</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 3', 50000, 3000, 41)">acheter chez machines</button>
+            </div>
+            <div class="vip-card vip4">
+                <div class="vip-badge">VIP 4</div>
+                <div class="vip-price">125 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>6 500 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>292 500 F</strong></div>
+                <div class="vip-info"><span>Durée:</span> <strong>45 Jours</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 4', 125000, 6500, 45)">acheter chez machine</button>
+            </div>
+            <div class="vip-card vip5">
+                <div class="vip-badge">VIP 5</div>
+                <div class="vip-price">200 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>13 000 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>533 000 F</strong></div>
+                <div class="vip-info"><span>Durée:</span> <strong>41 Jours</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 5', 200000, 13000, 41)">acheter chez machine</button>
+            </div>
+            <div class="vip-card vip6">
+                <div class="vip-badge">VIP 6</div>
+                <div class="vip-price">500 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>25 000 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>1 175 000 F</strong></div>
+                <div class="vip-info"><span>Durée:</span> <strong>47 Jours</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 6', 500000, 25000, 47)">acheter chez machine</button>
+            </div>
+            <div class="vip-card vip7">
+                <div class="vip-badge">VIP 7 (ULTIME)</div>
+                <div class="vip-price">1 000 000 F</div>
+                <div class="vip-info"><span>Quotidien:</span> <strong>60 000 F</strong></div>
+                <div class="vip-info"><span>Total:</span> <strong>2 460 000 F</strong></div>
+                <div class="vip-info"><span>Durée:</span> <strong>41 Jours</strong></div>
+                <button class="buy-btn" onclick="acheterVIP('VIP 7', 1000000, 60000, 41)">acheter pour augmenter</button>
+            </div>
+        </div>
+
+        <div id="page-portefeuille" class="page">
+            <h3 style="margin-bottom: 20px;">Mon Portefeuille</h3>
+            <div class="main-balance-card">
+                <div class="balance-item"><span class="label-text">Solde Recharge</span><span class="val-text val-recharge" id="ui-port-recharge">0 F</span></div>
+                <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0;"></div>
+                <div class="balance-item"><span class="label-text">Solde Revenus</span><span class="val-text val-revenu" id="ui-port-revenu">0 F</span></div>
+            </div>
+            <div class="action-container">
+                <button class="action-btn btn-in" onclick="openDepot()"><span>📥</span><span>Dépôt</span></button>
+                <button class="action-btn btn-out" onclick="openRetrait()"><span>📤</span><span>Retrait</span></button>
+            </div>
+
+            <button onclick="openRetraitHistoryModal()" style="width:100%; padding:15px; background:var(--white); color:var(--primary); border:1px solid #ddd; border-radius:15px; font-weight:bold; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:10px;">
+                <span>🕒</span> Historique des retraits
+            </button>
+
+            <div id="section-retrait" style="display:none; background:white; padding:20px; border-radius:20px;">
+                <p style="font-size:0.8rem; color:var(--danger); margin-bottom:10px;">Frais de retrait : 13%</p>
+                <input type="number" id="mntRetrait" class="auth-input" placeholder="Montant à retirer" oninput="calculerNet()">
+                <input type="number" id="numRetrait" class="auth-input" placeholder="Numéro de retrait">
+                <p id="ui-calcul-frais" style="font-size: 0.85rem; color: var(--accent); font-weight: bold; margin: 10px 0; text-align: center;">Vous recevrez : 0 F</p>
+                
+                <button class="auth-btn" style="background:var(--danger);" onclick="demanderRetrait()">Confirmer le retrait</button>
+            </div>
+        </div>
+
+        <div id="page-compte" class="page">
+            <h3>Mon Compte</h3>
+            <div class="info-card">
+                <h4 style="margin-top:0; color:var(--accent);">Informations Personnelles</h4>
+                <div class="info-row"><span class="info-label">Prénom</span><span class="info-value" id="ui-info-prenom">...</span></div>
+                <div class="info-row"><span class="info-label">Nom</span><span class="info-value" id="ui-info-nom">...</span></div>
+                <div class="info-row"><span class="info-label">Téléphone</span><span class="info-value" id="ui-info-phone">...</span></div>
+                <div class="info-row"><span class="info-label">Code d'invitation</span><span class="info-value" style="color:var(--accent)" id="ui-info-code">...</span></div>
+            </div>
+            <button id="btn-admin-floating" onclick="openAdminModal()">Accès Administration 👑</button>
+            <button onclick="handleLogout()" style="width:100%; padding:15px; background:var(--danger); color:white; border:none; border-radius:12px; font-weight:bold; margin-top:10px; cursor:pointer;">Déconnexion</button>
+        </div>
+    </div>
+
+    <div id="retraitHistoryModal" class="modal-overlay">
+        <div class="modal-header"><h3>🕒 Historique Retraits</h3><button class="close-modal" onclick="closeRetraitHistoryModal()">✕</button></div>
+        <div id="retrait-history-content"><p style="text-align:center; color:var(--grey);">Chargement...</p></div>
+    </div>
+
+    <div id="investedModal" class="modal-overlay">
+        <div class="modal-header"><h3>📊 Mes machines de richesse</h3><button class="close-modal" onclick="closeInvestModal()">✕</button></div>
+        
+        <div id="ui-total-machine-gains" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:15px; text-align:center; border:1px solid var(--accent);">
+            <p style="margin:0; font-size:0.75rem; color:var(--grey); text-transform:uppercase;">Revenus obtenus de vos machines</p>
+            <h2 id="ui-val-total-machine" style="margin:5px 0 0 0; color:var(--accent);">0 F</h2>
+        </div>
+
+        <div class="invest-tabs">
+            <span class="tab-link active" id="tab-actifs" onclick="switchInvestTab('actifs')">Actifs</span>
+            <span class="tab-link" id="tab-expires" onclick="switchInvestTab('expires')">Expirés</span>
+        </div>
+        <div id="invest-active-list"></div>
+        <div id="invest-expired-list" style="display:none"></div>
+    </div>
+
+    <div id="adminModal" class="modal-overlay">
+        <div class="modal-header"><h3>👑 Admin (<span id="admin-total-users">0</span> inscrits)</h3><button class="close-modal" onclick="closeAdminModal()">✕</button></div>
+        <div class="admin-tabs">
+            <span class="tab-link active" onclick="switchAdminTab('users', this)">Inscrits</span>
+            <span class="tab-link" onclick="switchAdminTab('depots', this)">Dépôts</span>
+            <span class="tab-link" onclick="switchAdminTab('retraits', this)">Retraits</span>
+        </div>
+        <div id="admin-content" style="overflow-x:auto">
+            <table class="admin-table" id="table-users"><thead><tr><th>Tel</th><th>Nom</th><th>Soldes</th><th>Actions</th></tr></thead><tbody id="admin-user-list"></tbody></table>
+            <table class="admin-table" id="table-depots" style="display:none"><thead><tr><th>Utilisateur</th><th>Montant</th><th>Action</th></tr></thead><tbody id="admin-depot-list"></tbody></table>
+            <table class="admin-table" id="table-retraits" style="display:none"><thead><tr><th>Numéro</th><th>Montant</th><th>Action</th></tr></thead><tbody id="admin-retrait-list"></tbody></table>
+        </div>
+    </div>
+
+    <div id="referralModal" class="modal-overlay">
+        <div class="modal-header"><h3>Programme Parrainage</h3><button class="close-modal" onclick="closeReferralModal()">✕</button></div>
+        <div class="referral-box">
+            <p>Gagnez des bonus sur chaque ami !</p>
+            <ul style="text-align:left; font-size:0.8rem; color:var(--grey); margin:15px 0;">
+                <li>Ami investit 5.000F ➔ <b style="color:var(--accent);">+1.500F</b></li>
+                <li>Ami investit 20.000F ➔ <b style="color:var(--accent);">+5.000F</b></li>
+                <li>Ami investit 50.000F ➔ <b style="color:var(--accent);">+5.000F</b></li>
+                <li>Ami investit 125.000F ➔ <b style="color:var(--accent);">+7.000F</b></li>
+                <li>Ami investit 200.000F ➔ <b style="color:var(--accent);">+11.000F</b></li>
+                <li>Ami investit 500.000F ➔ <b style="color:var(--accent);">+16.000F</b></li>
+                <li>Ami investit 1.000.000F ➔ <b style="color:var(--accent);">+21.000F</b></li>
+                <li>Commission permanente ➔ <b style="color:var(--accent);">10% du dépôt</b></li>
+            </ul>
+            <p style="font-size: 0.8rem; color: var(--grey); margin-top: 10px;">Votre code :</p>
+            <h2 id="my-invite-code" style="color: var(--accent); letter-spacing: 2px;">-------</h2>
+            <button class="copy-btn" onclick="copyReferralLink()">Copier le lien d'invitation</button>
+        </div>
+    </div>
+
+    <div id="modalDepot" class="modal-depot">
+        <div class="depot-content">
+            <h3 style="margin-top:0">Recharger le compte</h3>
+            <div class="op-selector"><div class="op-btn active" id="btn-orange" onclick="selectOp('orange')">Orange</div><div class="op-btn" id="btn-moov" onclick="selectOp('moov')">Moov</div></div>
+            <input type="number" id="mntDepot" class="input-depot" placeholder="Montant (FCFA)">
+            <div class="quick-amounts"><button class="q-btn" onclick="setMnt(5000)">5000</button><button class="q-btn" onclick="setMnt(20000)">20000</button><button class="q-btn" onclick="setMnt(50000)">50000</button><button class="q-btn" onclick="setMnt(1000000)">1000000</button></div>
+            <button onclick="payerUSSD()" class="auth-btn">Confirmer le dépôt</button>
+            <button onclick="closeDepot()" style="width:100%; margin-top:10px; border:none; background:none; color:var(--grey);">Annuler</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="showPage('page-accueil', this)"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg><span>Accueil</span></div>
+        <div class="nav-item" onclick="showPage('page-produits', this)"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4z"></path></svg><span>Produits</span></div>
+        <div class="nav-item" onclick="showPage('page-portefeuille', this)"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2-.9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"></path></svg><span>Portefeuille</span></div>
+        <div class="nav-item" onclick="showPage('page-compte', this)"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg><span>Compte</span></div>
+    </nav>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA5zywGXaDXvNCEHfnhgbm3EC07BcOYCd4",
+            authDomain: "pandabf-11563.firebaseapp.com",
+            databaseURL: "https://pandabf-11563-default-rtdb.firebaseio.com",
+            projectId: "pandabf-11563",
+            storageBucket: "pandabf-11563.firebasestorage.app",
+            messagingSenderId: "357012482060",
+            appId: "1:357012482060:web:1511543886717b7ad56629",
+            measurementId: "G-KQY869XWEN"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let currentUser = null;
+
+        (function checkAuth() {
+            const savedPhone = localStorage.getItem('panda_phone');
+            const savedPass = localStorage.getItem('panda_pass');
+            if(savedPhone && savedPass) {
+                db.ref('users/' + savedPhone).once('value', snapshot => {
+                    const user = snapshot.val();
+                    if(user && user.pass === savedPass) { currentUser = user; syncUserData(); } 
+                    else { showLoginScreen(); }
+                });
+            } else { showLoginScreen(); }
+        })();
+
+        function showLoginScreen() { 
+            // Masquer toutes les pages et afficher l'écran de connexion
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('auth-login').style.display = 'flex'; 
+        }
+
+        function customAlert(message, showCancel = false, callback = null) {
+            const box = document.getElementById('custom-alert-box');
+            const msg = document.getElementById('alert-msg');
+            const okBtn = document.getElementById('alert-ok-btn');
+            const cancelBtn = document.getElementById('alert-cancel-btn');
+            msg.innerText = message;
+            box.style.display = 'flex';
+            cancelBtn.style.display = showCancel ? 'block' : 'none';
+            okBtn.onclick = () => { box.style.display = 'none'; if(callback) callback(true); };
+            cancelBtn.onclick = () => { box.style.display = 'none'; if(callback) callback(false); };
+        }
+
+        function switchAuth(mode) {
+            document.getElementById('auth-login').style.display = mode === 'login' ? 'flex' : 'none';
+            document.getElementById('auth-register').style.display = mode === 'register' ? 'flex' : 'none';
+        }
+
+        function handleRegister() {
+            const nom = document.getElementById('reg-nom').value;
+            const prenom = document.getElementById('reg-prenom').value;
+            const phone = document.getElementById('reg-phone').value;
+            const pass = document.getElementById('reg-pass').value;
+            const parrainCode = document.getElementById('reg-code').value;
+            if(!nom || !prenom || !phone || !pass) return customAlert("Veuillez remplir tous les champs");
+            db.ref('users/' + phone).once('value', snapshot => {
+                if(snapshot.exists()) return customAlert("Ce numéro est déjà inscrit");
+                const userData = { nom, prenom, phone, pass, parrain: parrainCode || "aucun", solde_recharge: 0, solde_revenu: 0, solde_parrainage: 0, rev_total: 0, rev_jour: 0, ret_total: 0, investissements: [], first_deposit_done: false, last_claim_date: "" };
+                db.ref('users/' + phone).set(userData).then(() => { customAlert("Inscription réussie !", false, () => switchAuth('login')); });
+            });
+        }
+
+        function handleLogin() {
+            const phone = document.getElementById('login-phone').value;
+            const pass = document.getElementById('login-pass').value;
+            db.ref('users/' + phone).once('value', snapshot => {
+                const user = snapshot.val();
+                if(user && user.pass === pass) { 
+                    currentUser = user; 
+                    localStorage.setItem('panda_phone', phone);
+                    localStorage.setItem('panda_pass', pass);
+                    document.getElementById('auth-login').style.display = 'none'; 
+                    showPage('page-accueil', document.querySelectorAll('.nav-item')[0]);
+                    syncUserData(); 
+                } else { customAlert("Identifiants incorrects"); }
+            });
+        }
+
+        function handleLogout() { 
+            currentUser = null; 
+            localStorage.removeItem('panda_phone'); 
+            localStorage.removeItem('panda_pass');
+            document.getElementById('login-phone').value = "";
+            document.getElementById('login-pass').value = "";
+            showLoginScreen();
+        }
+
+        function syncUserData() {
+            if(!currentUser) return;
+            if(currentUser.phone == "66867654") { document.getElementById('btn-admin-floating').style.display = 'block'; loadAdminData(); }
+            
+            calculerRevenusAutomatiques(currentUser.phone);
+
+            db.ref('users/' + currentUser.phone).on('value', snapshot => {
+                const data = snapshot.val(); if(!data) return;
+                currentUser = data;
+                document.getElementById('ui-username').innerText = data.prenom;
+                document.getElementById('ui-rev-total').innerText = (data.rev_total || 0) + " F";
+                document.getElementById('ui-rev-jour').innerText = (data.rev_jour || 0) + " F";
+                document.getElementById('ui-ret-total').innerText = (data.ret_total || 0) + " F";
+                document.getElementById('ui-solde-parrainage').innerText = (data.solde_parrainage || 0) + " F";
+                document.getElementById('ui-port-recharge').innerText = (data.solde_recharge || 0) + " F";
+                document.getElementById('ui-port-revenu').innerText = (data.solde_revenu || 0) + " F";
+                document.getElementById('ui-info-prenom').innerText = data.prenom;
+                document.getElementById('ui-info-nom').innerText = data.nom;
+                document.getElementById('ui-info-phone').innerText = data.phone;
+                document.getElementById('ui-info-code').innerText = data.phone.toString().slice(-7);
+                document.getElementById('my-invite-code').innerText = data.phone.toString().slice(-7);
+                loadHistory(data.phone);
+                updateInvestedList(data.investissements);
+            });
+        }
+
+        function calculerRevenusAutomatiques(phone) {
+            db.ref('users/' + phone).once('value', snapshot => {
+                const user = snapshot.val();
+                if (!user || !user.investissements) return;
+                
+                const maintenant = new Date();
+                const aujourdhuiStr = maintenant.toLocaleDateString('fr-FR');
+                
+                if (user.last_claim_date === aujourdhuiStr) return;
+
+                let gainsTotalSession = 0;
+                let dernierGainJour = 0;
+                const timestampMaintenant = Date.now();
+
+                let derniereDate;
+                if (!user.last_claim_date) {
+                    derniereDate = new Date();
+                    derniereDate.setDate(derniereDate.getDate() - 1);
+                } else {
+                    const parts = user.last_claim_date.split('/');
+                    derniereDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+
+                const diffTemps = maintenant.getTime() - derniereDate.getTime();
+                const nbJoursARattraper = Math.floor(diffTemps / (1000 * 3600 * 24));
+
+                if (nbJoursARattraper > 0) {
+                    Object.keys(user.investissements).forEach(key => {
+                        const inv = user.investissements[key];
+                        for (let i = 1; i <= nbJoursARattraper; i++) {
+                            let dateDuGain = new Date(derniereDate);
+                            dateDuGain.setDate(dateDuGain.getDate() + i);
+                            let tsGain = dateDuGain.getTime();
+
+                            if (tsGain > inv.date && tsGain <= inv.expire) {
+                                gainsTotalSession += inv.gain;
+                                if (i === nbJoursARattraper) dernierGainJour += inv.gain;
+                            }
+                        }
+                    });
+
+                    if (gainsTotalSession > 0) {
+                        db.ref('users/' + phone).update({ 
+                            solde_revenu: (user.solde_revenu || 0) + gainsTotalSession, 
+                            rev_total: (user.rev_total || 0) + gainsTotalSession, 
+                            rev_jour: dernierGainJour,
+                            last_claim_date: aujourdhuiStr 
+                        });
+                        db.ref('history/' + phone).push({ 
+                            type: `Revenus (${nbJoursARattraper}j)`, 
+                            amount: gainsTotalSession, 
+                            date: timestampMaintenant 
+                        });
+                    } else {
+                        db.ref('users/' + phone).update({ last_claim_date: aujourdhuiStr });
+                    }
+                }
+            });
+        }
+
+        function acheterVIP(nom, prix, gainQuotidien, dureeJours) {
+            let countAlreadyOwned = 0;
+            if (currentUser.investissements) {
+                Object.values(currentUser.investissements).forEach(inv => {
+                    if (inv.nom === nom && Date.now() < inv.expire) {
+                        countAlreadyOwned++;
+                    }
+                });
+            }
+
+            if (countAlreadyOwned >= 3) {
+                return customAlert(`Désolé, vous avez déjà atteint la limite de 3 machines pour le plan ${nom}.`);
+            }
+
+            if(currentUser.solde_recharge < prix) return customAlert("Solde de recharge insuffisant veuillez recharger.");
+            
+            customAlert(`Confirmer l'achat de chez machines de ${prix} F pour le plan ${nom} ?`, true, (confirmé) => {
+                if(confirmé) {
+                    db.ref('users/' + currentUser.phone + '/solde_recharge').transaction(c => (c || 0) - prix);
+                    const nouvelleMachine = { 
+                        nom: nom, 
+                        prix: prix, 
+                        gain: gainQuotidien, 
+                        date: Date.now(), 
+                        expire: Date.now() + (dureeJours * 24 * 60 * 60 * 1000) 
+                    };
+                    db.ref('users/' + currentUser.phone + '/investissements').push(nouvelleMachine);
+                    db.ref('history/' + currentUser.phone).push({ type: "Achat " + nom, amount: -prix, date: Date.now() });
+                    customAlert("Achat réussi ! Vos revenus commenceront à tomber dès demain minuit.");
+                    showPage('page-accueil', document.querySelectorAll('.nav-item')[0]);
+                }
+            });
+        }
+
+        function updateInvestedList(invests) {
+            const activeList = document.getElementById('invest-active-list');
+            const expiredList = document.getElementById('invest-expired-list');
+            const uiGrandTotal = document.getElementById('ui-val-total-machine');
+            activeList.innerHTML = "";
+            expiredList.innerHTML = "";
+            
+            let totalGeneralGains = 0;
+
+            if(!invests) { 
+                activeList.innerHTML = '<p style="text-align:center; color:var(--grey); padding:20px;">Aucun investissement actif</p>'; 
+                expiredList.innerHTML = '<p style="text-align:center; color:var(--grey); padding:20px;">Aucun investissement expiré</p>'; 
+                uiGrandTotal.innerText = "0 F";
+                return; 
+            }
+
+            let countActif = 0;
+            let countExpire = 0;
+
+            Object.values(invests).forEach(inv => {
+                const maintenant = Date.now();
+                const estExpire = maintenant > inv.expire;
+                
+                const msEcoules = Math.min(maintenant, inv.expire) - inv.date;
+                const joursEcoules = Math.max(0, Math.floor(msEcoules / (24 * 60 * 60 * 1000)));
+                const gainTotalMachine = joursEcoules * inv.gain;
+                
+                totalGeneralGains += gainTotalMachine;
+
+                const joursRestants = Math.max(0, Math.ceil((inv.expire - maintenant) / (24 * 60 * 60 * 1000)));
+                
+                const cardHtml = `
+                <div class="machine-item ${estExpire ? 'expired' : ''}">
+                    <div class="m-header">
+                        <strong style="color:${estExpire ? 'var(--danger)' : 'var(--accent)'}">${inv.nom} ${estExpire ? '(EXPIRÉ)' : ''}</strong>
+                        <span style="font-size:0.75rem; color:var(--grey)">Acheté le: ${new Date(inv.date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="m-grid">
+                        <div class="m-data">Gain quotidien<span class="m-val" style="color:var(--accent)">+${inv.gain} F</span></div>
+                        <div class="m-data">Revenu Obtenu<span class="m-val" style="color:var(--gold)">${gainTotalMachine} F</span></div>
+                        <div class="m-data">Jours restants<span class="m-val">${joursRestants} jours</span></div>
+                        <div class="m-data">Prix d'achat<span class="m-val">${inv.prix} F</span></div>
+                    </div>
+                </div>`;
+
+                if(estExpire) {
+                    expiredList.innerHTML += cardHtml;
+                    countExpire++;
+                } else {
+                    activeList.innerHTML += cardHtml;
+                    countActif++;
+                }
+            });
+
+            uiGrandTotal.innerText = totalGeneralGains + " F";
+
+            if(countActif === 0) activeList.innerHTML = '<p style="text-align:center; color:var(--grey); padding:20px;">Aucun investissement actif</p>';
+            if(countExpire === 0) expiredList.innerHTML = '<p style="text-align:center; color:var(--grey); padding:20px;">Aucun investissement expiré</p>';
+        }
+
+        function switchInvestTab(type) {
+            document.getElementById('tab-actifs').classList.remove('active');
+            document.getElementById('tab-expires').classList.remove('active');
+            document.getElementById('invest-active-list').style.display = 'none';
+            document.getElementById('invest-expired-list').style.display = 'none';
+
+            if(type === 'actifs') {
+                document.getElementById('tab-actifs').classList.add('active');
+                document.getElementById('invest-active-list').style.display = 'block';
+            } else {
+                document.getElementById('tab-expires').classList.add('active');
+                document.getElementById('invest-expired-list').style.display = 'block';
+            }
+        }
+
+        function openAdminModal() { document.getElementById('adminModal').style.display = 'block'; }
+        function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
+        function switchAdminTab(tab, el) {
+            document.querySelectorAll('#adminModal .tab-link').forEach(l => l.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('table-users').style.display = tab === 'users' ? 'table' : 'none';
+            document.getElementById('table-depots').style.display = tab === 'depots' ? 'table' : 'none';
+            document.getElementById('table-retraits').style.display = tab === 'retraits' ? 'table' : 'none';
+        }
+
+        function loadAdminData() {
+            db.ref('users').on('value', snap => {
+                const list = document.getElementById('admin-user-list'); list.innerHTML = ""; let count = 0;
+                snap.forEach(userSnap => {
+                    count++; const u = userSnap.val();
+                    list.innerHTML += `<tr>
+                        <td>${u.phone}</td>
+                        <td>${u.prenom}</td>
+                        <td style="font-size:0.6rem">R: ${u.solde_recharge}F<br>G: ${u.solde_revenu}</td>
+                        <td>
+                            <button class="btn-manage bg-success" onclick="adminAddCash('${u.phone}')">+ Recharge</button>
+                            <button class="btn-manage bg-danger" onclick="adminRemoveCash('${u.phone}')">- Recharge</button>
+                            <button class="btn-manage bg-info" onclick="adminAddRevenue('${u.phone}')">+ Gains</button>
+                            <button class="btn-manage bg-danger" onclick="adminRemoveRevenue('${u.phone}')">- Gains</button>
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById('admin-total-users').innerText = count;
+            });
+            db.ref('demandes_depots').on('value', snap => {
+                const list = document.getElementById('admin-depot-list'); list.innerHTML = "";
+                snap.forEach(dSnap => {
+                    const d = dSnap.val();
+                    list.innerHTML += `<tr><td>${d.phone}</td><td>${d.amount}F</td><td><button class="btn-manage bg-success" onclick="validerDepot('${dSnap.key}', '${d.phone}', ${d.amount})">✓</button><button class="btn-manage bg-danger" onclick="refuserDepot('${dSnap.key}', '${d.phone}')">✕</button></td></tr>`;
+                });
+            });
+            db.ref('demandes_retraits').on('value', snap => {
+                const list = document.getElementById('admin-retrait-list'); list.innerHTML = "";
+                snap.forEach(rSnap => {
+                    const r = rSnap.val();
+                    list.innerHTML += `<tr><td>${r.num_retrait}</td><td>${r.amount}F</td><td><button class="btn-manage bg-success" onclick="validerRetrait('${rSnap.key}', '${r.phone}', ${r.amount})">✓</button><button class="btn-manage bg-danger" onclick="refuserRetrait('${rSnap.key}', '${r.phone}', ${r.amount})">✕</button></td></tr>`;
+                });
+            });
+        }
+
+        function adminAddCash(phone) { let mnt = prompt("Montant à AJOUTER au solde Recharge :"); if(mnt) db.ref('users/' + phone + '/solde_recharge').transaction(c => (c || 0) + parseFloat(mnt)); }
+        function adminRemoveCash(phone) { let mnt = prompt("Montant à RETIRER du solde Recharge :"); if(mnt) db.ref('users/' + phone + '/solde_recharge').transaction(c => (c || 0) - parseFloat(mnt)); }
+        function adminAddRevenue(phone) { let mnt = prompt("Montant à AJOUTER aux Gains :"); if(mnt) { db.ref('users/' + phone + '/solde_revenu').transaction(c => (c || 0) + parseFloat(mnt)); db.ref('users/' + phone + '/rev_total').transaction(c => (c || 0) + parseFloat(mnt)); } }
+        function adminRemoveRevenue(phone) { let mnt = prompt("Montant à RETIRER des Gains :"); if(mnt) { db.ref('users/' + phone + '/solde_revenu').transaction(c => Math.max(0, (c || 0) - parseFloat(mnt))); } }
+
+        function validerDepot(key, phone, amount) {
+            db.ref('users/' + phone + '/solde_recharge').transaction(c => (c || 0) + amount);
+            db.ref('history/' + phone).push({ type: "Dépôt Validé", amount: amount, date: Date.now() });
+            db.ref('demandes_depots/' + key).remove();
+            triggerReferralBonus(phone, amount);
+        }
+
+        function triggerReferralBonus(childPhone, depositAmount) {
+            db.ref('users/' + childPhone).once('value', snapshot => {
+                const childData = snapshot.val();
+                if(!childData.first_deposit_done && childData.parrain !== "aucun") {
+                    let bonusFixe = 0;
+                    if(depositAmount >= 1000000) bonusFixe = 21000;
+                    else if(depositAmount >= 500000) bonusFixe = 16000;
+                    else if(depositAmount >= 200000) bonusFixe = 11000;
+                    else if(depositAmount >= 125000) bonusFixe = 7000;
+                    else if(depositAmount >= 5000) bonusFixe = 1500;
+                    const totalGains = bonusFixe + (depositAmount * 0.10);
+                    
+                    db.ref('users').once('value', allUsers => {
+                        allUsers.forEach(parent => {
+                            if(parent.key.slice(-7) === childData.parrain || parent.key === childData.parrain) {
+                                db.ref('users/' + parent.key + '/solde_revenu').transaction(c => (c || 0) + totalGains);
+                                db.ref('users/' + parent.key + '/rev_total').transaction(c => (c || 0) + totalGains);
+                                db.ref('users/' + parent.key + '/solde_parrainage').transaction(c => (c || 0) + totalGains);
+                                db.ref('history/' + parent.key).push({ type: "Com. Parrainage", amount: totalGains, date: Date.now() });
+                            }
+                        });
+                    });
+                    db.ref('users/' + childPhone).update({ first_deposit_done: true });
+                }
+            });
+        }
+
+        function refuserDepot(key, phone) { db.ref('demandes_depots/' + key).remove(); }
+        
+        function validerRetrait(key, phone, amount) {
+            db.ref('users/' + phone + '/ret_total').transaction(c => (c || 0) + amount);
+            db.ref('history/' + phone).push({ type: "Retrait Effectué", amount: -amount, date: Date.now(), isRetrait: true });
+            db.ref('demandes_retraits/' + key).remove();
+        }
+        
+        function refuserRetrait(key, phone, amount) {
+            db.ref('users/' + phone + '/solde_revenu').transaction(c => (c || 0) + amount);
+            db.ref('history/' + phone).push({ type: "Retrait Refusé", amount: amount, date: Date.now() });
+            db.ref('demandes_retraits/' + key).remove();
+        }
+
+        function openRetraitHistoryModal() {
+            document.getElementById('retraitHistoryModal').style.display = 'block';
+            const content = document.getElementById('retrait-history-content');
+            db.ref('history/' + currentUser.phone).once('value', snapshot => {
+                content.innerHTML = ""; let count = 0;
+                let items = [];
+                snapshot.forEach(child => { 
+                    const it = child.val();
+                    if(it.type.includes("Retrait") || it.isRetrait) items.push(it);
+                });
+                
+                items.reverse().forEach(item => {
+                    count++;
+                    const dateObj = new Date(item.date);
+                    const amountAbs = Math.abs(item.amount);
+                    const frais = Math.floor(amountAbs * 0.13);
+                    const net = amountAbs - frais;
+                    
+                    content.innerHTML += `
+                        <div class="retrait-card-history">
+                            <div class="rh-row"><span class="rh-label">Type:</span><span class="rh-val" style="color:var(--gold)">${item.type}</span></div>
+                            <div class="rh-row"><span class="rh-label">Date:</span><span class="rh-val">${dateObj.toLocaleDateString()}</span></div>
+                            <div class="rh-row"><span class="rh-label">Montant demandé:</span><span class="rh-val">${amountAbs} F</span></div>
+                            <div class="rh-row"><span class="rh-label">Frais (13%):</span><span class="rh-val" style="color:var(--danger)">-${frais} F</span></div>
+                            <div style="height:1px; background:rgba(255,255,255,0.1); margin:8px 0;"></div>
+                            <div class="rh-row"><span class="rh-label" style="color:var(--white)">Montant à recevoir:</span><span class="rh-val" style="color:var(--accent); font-size:1rem;">${net} F</span></div>
+                        </div>`;
+                });
+                if(count === 0) content.innerHTML = '<p style="text-align:center; color:var(--grey);">Aucun retrait</p>';
+            });
+        }
+
+        function closeRetraitHistoryModal() { document.getElementById('retraitHistoryModal').style.display = 'none'; }
+        function openInvestModal() { document.getElementById('investedModal').style.display = 'block'; switchInvestTab('actifs'); }
+        function closeInvestModal() { document.getElementById('investedModal').style.display = 'none'; }
+        function openReferralModal() { document.getElementById('referralModal').style.display = 'block'; }
+        function closeReferralModal() { document.getElementById('referralModal').style.display = 'none'; }
+        function openDepot() { document.getElementById('modalDepot').style.display = 'flex'; }
+        function closeDepot() { document.getElementById('modalDepot').style.display = 'none'; }
+        function openRetrait() { const sec = document.getElementById('section-retrait'); sec.style.display = sec.style.display === 'none' ? 'block' : 'none'; }
+
+        function calculerNet() {
+            const mnt = parseFloat(document.getElementById('mntRetrait').value) || 0;
+            const net = mnt - (mnt * 0.13);
+            document.getElementById('ui-calcul-frais').innerText = "Vous recevrez : " + Math.floor(net) + " F";
+        }
+
+        function demanderRetrait() {
+            const mnt = parseFloat(document.getElementById('mntRetrait').value);
+            const num = document.getElementById('numRetrait').value;
+            if(!mnt || mnt < 1000) return customAlert("Minimum retrait 1000F");
+            if(currentUser.solde_revenu < mnt) return customAlert("Solde insuffisant.");
+            db.ref('users/' + currentUser.phone + '/solde_revenu').transaction(c => (c || 0) - mnt);
+            db.ref('demandes_retraits').push({ phone: currentUser.phone, amount: mnt, num_retrait: num, date: Date.now() });
+            db.ref('history/' + currentUser.phone).push({ type: "Retrait en attente", amount: -mnt, date: Date.now() });
+            customAlert("Demande envoyée !");
+            document.getElementById('section-retrait').style.display = 'none';
+        }
+
+        function payerUSSD() {
+            const mnt = parseFloat(document.getElementById('mntDepot').value);
+            if(!mnt || mnt < 100) return customAlert("Montant invalide");
+            db.ref('demandes_depots').push({ phone: currentUser.phone, amount: mnt, date: Date.now() });
+            let code = currentOp === 'orange' ? `*144*2*1*66867654*${mnt}#` : `*555*2*1*63664378*${mnt}#`;
+            window.location.href = "tel:" + encodeURIComponent(code);
+            closeDepot();
+        }
+
+        function loadHistory(phone) {
+            db.ref('history/' + phone).limitToLast(5).on('value', snap => {
+                const list = document.getElementById('ui-history-list'); list.innerHTML = "";
+                if(!snap.exists()) { list.innerHTML = '<p style="text-align:center; color:var(--grey);">Aucune activité</p>'; return; }
+                let items = []; snap.forEach(c => items.push(c.val()));
+                items.reverse().forEach(item => {
+                    list.innerHTML += `<div class="history-item"><span>${item.type}</span><span class="${item.amount >= 0 ? 'plus' : 'minus'}">${item.amount} F</span></div>`;
+                });
+            });
+        }
+
+        function showPage(pageId, element) {
+            if(!currentUser && pageId !== 'auth-login') return;
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            if(element) element.classList.add('active');
+        }
+        
+        let currentOp = 'orange';
+        function selectOp(op) {
+            currentOp = op;
+            document.getElementById('btn-orange').classList.remove('active');
+            document.getElementById('btn-moov').classList.remove('active');
+            document.getElementById('btn-' + op).classList.add('active');
+        }
+        function setMnt(val) { document.getElementById('mntDepot').value = val; }
+        
+        function copyReferralLink() {
+            let code = currentUser.phone.toString().slice(-7);
+            const text = `Inscris-toi sur PandaBanque avec mon code ${code} : https://apk.e-droid.net/apk/app3767986-1leqnt.apk?v=4`;
+            navigator.clipboard.writeText(text).then(() => customAlert("Lien d'invitation copié !"));
+        }
+    </script>
+</body>
+</html>
